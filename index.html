@@ -1,48 +1,65 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="id">
 <head>
-  <meta charset="utf-8" />
-  <title>PWA Starter</title>
-
-  <base href="/" />
-
-  <!-- This meta viewport ensures the webpage's dimensions change according to the device it's on. This is called Responsive Web Design.-->
-  <meta name="viewport"
-    content="viewport-fit=cover, width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0" />
-  <meta name="description" content="This is a PWA Starter app" />
-
-  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#181818" />
-  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f3f3f3" />
-
-  <!-- These meta tags are Apple-specific, and set the web application to run in full-screen mode with a black status bar. Learn more at https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariHTMLRef/Articles/MetaTags.html-->
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-title" content="PWA Starter" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
-  
-  <!-- This tag is used by the PWA Starter CLI to identify template projects. Don't remove if you are using the CLI. -->
-  <meta name="pwa-starter-template-identity" content="pwa-starter-basic"/>
-
-  <!-- Imports an icon to represent the document. -->
-  <link rel="icon" href="/assets/icons/icon_24.png" type="image/x-icon" />
-
-  <!-- Imports the manifest to represent the web application. A web app must have a manifest to be a PWA. -->
-  <link rel="manifest" href="/manifest.json" />
-
-  <script type="module" src="/src/app-index.ts"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jadwal Pelajaran</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0f172a"/>
 </head>
-
 <body>
-  <!-- Our app-index web component. This component is defined in src/pages/app-index.ts-->
-  <app-index></app-index>
+  <h1>📚 Jadwal Pelajaran</h1>
+  <p>Aplikasi Jadwal Pelajaran versi PWA</p>
+
+  <button id="backupBtn">📤 Backup JSON</button>
+  <button id="importBtn">📥 Import JSON</button>
+  <input type="file" id="importFile" accept=".json,application/json" style="display:none" />
 
   <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register(
-        '/sw.js'
-      );
+    // Data contoh jadwal
+    let jadwal = {
+      Senin: ["Matematika", "Bahasa Indonesia"],
+      Selasa: ["IPA", "IPS"]
+    };
+
+    // Backup JSON
+    document.getElementById("backupBtn").addEventListener("click", () => {
+      const blob = new Blob([JSON.stringify(jadwal, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "jadwal_backup.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // Import JSON
+    document.getElementById("importBtn").addEventListener("click", () => {
+      document.getElementById("importFile").click();
+    });
+
+    document.getElementById("importFile").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          jadwal = JSON.parse(event.target.result);
+          alert("Import berhasil! Data ada di console.");
+          console.log("Data jadwal:", jadwal);
+        } catch (err) {
+          alert("Gagal membaca file JSON");
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // Register Service Worker
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw.js").then(() => {
+        console.log("Service Worker terdaftar");
+      });
     }
   </script>
 </body>
-
 </html>
