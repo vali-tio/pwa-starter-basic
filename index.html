@@ -1,16 +1,341 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PWA Example</title>
-  <link rel="manifest" href="manifest.webmanifest">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Jadwal Pelajaran (enhanced)</title>
+ <link rel="manifest" href="manifest.webmanifest">
+  <style>
+    :root{
+      --bg:#f9fafb;
+      --text:#111827;
+      --card:#ffffff;
+      --border:#d1d5db;
+      --shadow:0 6px 18px rgba(2,6,23,.08);
+      --muted:#f3f4f6;
+      --muted-border:#e5e7eb;
+      --btn:#111827;
+      --btn-text:#ffffff;
+      --default-subj:#cbd5e1;
+    }
+    body.dark{
+      --bg:#0f172a;
+      --text:#e5e7eb;
+      --card:#111827;
+      --border:#374151;
+      --shadow:0 10px 24px rgba(0,0,0,.35);
+      --muted:#0b1220;
+      --muted-border:#1f2937;
+      --btn:#e5e7eb;
+      --btn-text:#0b1220;
+      --default-subj:#334155;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--text);font:500 16px/1.5 ui-sans-serif,system-ui}
+    header{position:sticky;top:0;z-index:50;background:var(--card);box-shadow:var(--shadow);border-bottom:1px solid var(--border);}
+    .bar{max-width:900px;margin:0 auto;padding:10px 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    h1{font-size:18px;margin:0 10px 0 0}
+    button,select,input[type="text"],input[type="color"],textarea{border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:10px;padding:8px 10px;outline:none}
+    button{cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.06)}
+    .btn{background:var(--btn);color:var(--btn-text);border-color:transparent}
+    .btn-ghost{background:var(--muted);border-color:var(--muted-border);color:var(--text)}
+    .wrap{max-width:900px;margin:16px auto;padding:0 12px 32px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);padding:14px;margin-top:12px}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    label{font-size:14px;opacity:.9}
+
+    .preview{display:flex;flex-direction:column;gap:10px}
+    .item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,.08);border:1px solid rgba(0,0,0,.05);cursor:grab}
+    .left{display:flex;gap:10px;align-items:center;font-weight:700}
+    .idx{min-width:28px;text-align:center;opacity:.85}
+    .actions{display:flex;gap:6px}
+    .item.dragging{opacity:.6}
+
+    textarea.notes{width:100%;min-height:110px;resize:vertical}
+
+    @media (max-width:520px){
+      .bar{justify-content:space-between}
+      .row{flex-direction:column;align-items:stretch}
+    }
+  </style>
 </head>
 <body>
-  <h1>Hello PWA!</h1>
-  <p>This is a simple Progressive Web App example.</p>
+  <header>
+    <div class="bar">
+      <h1>Jadwal Pelajaran </h1>
+      <button class="btn-ghost" id="toggleTheme">🌙/☀️</button>
+      <button class="btn" id="saveBtn">💾 Simpan</button>
+      <button class="btn-ghost" id="backupBtn">📤 Backup JSON</button>
+      <input type="file" id="importFile" accept=".json,application/json" style="display:none" />
+      <button class="btn-ghost" id="importBtn">📥 Import JSON</button>
+      <button class="btn-ghost" id="resetColorsBtn">🎨 Reset Warna</button>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="card">
+      <div class="row">
+        <label for="daySelect">Pilih Hari</label>
+        <select id="daySelect"></select>
+        <button class="btn-ghost" id="addDayBtn">+ Hari</button>
+        <button class="btn-ghost" id="renameDayBtn">✏️ Ganti Nama Hari</button>
+        <button class="btn-ghost" id="deleteDayBtn">🗑️ Hapus Hari</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <input id="subjectInput" type="text" placeholder="Nama mata pelajaran" />
+        <input id="colorInput" type="color" value="#cbd5e1" title="Warna mapel" />
+        <button class="btn" id="addSubjectBtn">+ Tambah Pelajaran</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0">Preview Jadwal</h3>
+      <div id="preview" class="preview"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0">Catatan</h3>
+      <textarea id="notes" class="notes" placeholder="Catatan untuk hari terpilih..."></textarea>
+    </div>
+  </div>
 
   <script>
+    const KEY = 'jadwalDataV5_enh';
+    let data = loadInit();
+
+    function loadInit(){
+      let raw = localStorage.getItem(KEY);
+      if(raw){
+        try{ return JSON.parse(raw); }catch(e){}
+      }
+      return { hari: { 'Senin': [] }, warna: {}, notes: {} , theme: 'light' };
+    }
+
+    function save(){
+      data.notes[currentDay()] = notesEl.value;
+      localStorage.setItem(KEY, JSON.stringify(data));
+      alert('Data tersimpan!');
+    }
+
+    const daySelect = document.getElementById('daySelect');
+    const subjectInput = document.getElementById('subjectInput');
+    const colorInput = document.getElementById('colorInput');
+    const preview = document.getElementById('preview');
+    const notesEl = document.getElementById('notes');
+
+    (function initTheme(){
+      if(data.theme === 'dark') document.body.classList.add('dark');
+    })();
+
+    document.getElementById('toggleTheme').onclick = () => {
+      document.body.classList.toggle('dark');
+      data.theme = document.body.classList.contains('dark') ? 'dark' : 'light';
+    };
+
+    function currentDay(){ return daySelect.value; }
+    function ensureNotes(day){ if(!data.notes) data.notes={}; if(!(day in data.notes)) data.notes[day]=''; }
+
+    function rebuildDays(){
+      const sel = currentDay();
+      daySelect.innerHTML = '';
+      Object.keys(data.hari).forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d; opt.textContent = d; daySelect.appendChild(opt);
+      });
+      if(sel && (sel in data.hari)) daySelect.value = sel;
+      onDayChange();
+    }
+
+    function addDay(){
+      const name = prompt('Nama hari baru?');
+      if(!name) return;
+      if(data.hari[name]){ alert('Hari sudah ada.'); return; }
+      data.hari[name] = [];
+      ensureNotes(name);
+      rebuildDays();
+    }
+
+    function renameDay(){
+      const old = currentDay();
+      const name = prompt('Ganti nama hari:', old);
+      if(!name || name===old) return;
+      if(data.hari[name]){ alert('Nama sudah dipakai.'); return; }
+      data.hari[name] = data.hari[old];
+      delete data.hari[old];
+      if(data.notes && (old in data.notes)){ data.notes[name] = data.notes[old]; delete data.notes[old]; }
+      rebuildDays();
+      daySelect.value = name; onDayChange();
+    }
+
+    function deleteDay(){
+      const d = currentDay();
+      if(Object.keys(data.hari).length <= 1){ alert('Minimal harus ada 1 hari.'); return; }
+      if(confirm('Hapus hari '+d+'?')){
+        delete data.hari[d];
+        if(data.notes && (d in data.notes)) delete data.notes[d];
+        rebuildDays();
+      }
+    }
+
+    function getColor(subj){ return data.warna[subj] || getDefaultColor(); }
+    function getDefaultColor(){ return getComputedStyle(document.body).getPropertyValue('--default-subj').trim() || '#cbd5e1'; }
+
+    function addSubject(){
+      const subj = subjectInput.value.trim();
+      const col = colorInput.value || getDefaultColor();
+      if(!subj) return;
+      const d = currentDay();
+      data.hari[d].push(subj);
+      if(!data.warna[subj]) data.warna[subj] = col;
+      subjectInput.value='';
+      renderPreview();
+    }
+
+    function removeSubject(index){
+      const d = currentDay();
+      data.hari[d].splice(index,1);
+      renderPreview();
+    }
+
+    function editSubject(index){
+      const d = currentDay();
+      const subj = data.hari[d][index];
+      const newName = prompt('Nama pelajaran:', subj);
+      if(!newName) return;
+      const col = data.warna[subj] || getDefaultColor();
+      data.hari[d][index] = newName;
+      if(newName !== subj){ data.warna[newName] = col; delete data.warna[subj]; }
+      renderPreview();
+    }
+
+    function editColor(index){
+      const d = currentDay();
+      const subj = data.hari[d][index];
+      const picker = document.createElement('input');
+      picker.type = 'color';
+      picker.value = getColor(subj);
+      picker.style.position='fixed'; picker.style.left='-9999px';
+      document.body.appendChild(picker);
+      picker.onchange = () => { data.warna[subj] = picker.value; renderPreview(); document.body.removeChild(picker); };
+      picker.click();
+    }
+
+    let dragIndex = null;
+    function makeDraggable(el, index){
+      el.draggable = true;
+      el.addEventListener('dragstart', ()=>{ dragIndex = index; el.classList.add('dragging'); });
+      el.addEventListener('dragend', ()=>{
+        el.classList.remove('dragging');
+        const d = currentDay();
+        const names = Array.from(preview.querySelectorAll('.item')).map(x=>x.dataset.name);
+        data.hari[d] = names;
+        renderPreview();
+      });
+    }
+
+    preview.addEventListener('dragover', (e)=>{
+      e.preventDefault();
+      const dragging = preview.querySelector('.dragging');
+      if(!dragging) return;
+      const after = Array.from(preview.children).find(el => {
+        const box = el.getBoundingClientRect();
+        return e.clientY <= box.top + box.height/2;
+      });
+      if(after) preview.insertBefore(dragging, after); else preview.appendChild(dragging);
+    });
+
+    function renderPreview(){
+      const d = currentDay();
+      preview.innerHTML='';
+      (data.hari[d]||[]).forEach((subj,i)=>{
+        const item = document.createElement('div');
+        item.className='item';
+        item.style.background = getColor(subj);
+        item.dataset.name = subj;
+
+        const left = document.createElement('div'); left.className='left';
+        const idx = document.createElement('div'); idx.className='idx'; idx.textContent = (i+1);
+        const name = document.createElement('div'); name.textContent = subj;
+        left.append(idx,name);
+
+        const actions = document.createElement('div'); actions.className='actions';
+        const btnEdit = document.createElement('button'); btnEdit.className='btn-ghost'; btnEdit.textContent='✏️'; btnEdit.title='Edit nama'; btnEdit.onclick=()=>editSubject(i);
+        const btnColor = document.createElement('button'); btnColor.className='btn-ghost'; btnColor.textContent='🎨'; btnColor.title='Ganti warna'; btnColor.onclick=()=>editColor(i);
+        const btnDel = document.createElement('button'); btnDel.className='btn-ghost'; btnDel.textContent='🗑️'; btnDel.title='Hapus'; btnDel.onclick=()=>removeSubject(i);
+        actions.append(btnEdit,btnColor,btnDel);
+
+        item.append(left,actions);
+        makeDraggable(item,i);
+        preview.appendChild(item);
+      });
+      ensureNotes(d);
+      notesEl.value = data.notes[d] || '';
+    }
+
+    function exportJSON(){
+      const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'jadwal_backup_v5.json';
+      a.click();
+    }
+
+    function normalizeImported(obj){
+      let res = { hari:{}, warna:{}, notes:{}, theme: obj.theme||'light' };
+      if(obj.hari){ res.hari = obj.hari; }
+      if(obj.days){ res.hari = obj.days; }
+      if(obj.warna){ res.warna = obj.warna; }
+      if(typeof obj.notes === 'string'){ res.notes = {}; Object.keys(res.hari).forEach(d=>res.notes[d]=obj.notes); }
+      else if(typeof obj.notes === 'object' && obj.notes){ res.notes = obj.notes; }
+      Object.keys(res.hari).forEach(d=>{ if(!(d in res.notes)) res.notes[d]=''; });
+      return res;
+    }
+
+    function importJSON(file){
+      const reader = new FileReader();
+      reader.onload = ev => {
+        try{
+          const parsed = JSON.parse(ev.target.result);
+          data = normalizeImported(parsed);
+          rebuildDays();
+        }catch(e){ alert('File JSON tidak valid'); }
+      };
+      reader.readAsText(file);
+    }
+
+    function resetColors(){ data.warna = {}; renderPreview(); }
+
+    function onDayChange(){ renderPreview(); }
+    daySelect.onchange = onDayChange;
+
+    document.getElementById('addDayBtn').onclick = addDay;
+    document.getElementById('renameDayBtn').onclick = renameDay;
+    document.getElementById('deleteDayBtn').onclick = deleteDay;
+
+    document.getElementById('addSubjectBtn').onclick = addSubject;
+
+    document.getElementById('saveBtn').onclick = save;
+    document.getElementById('backupBtn').onclick = exportJSON;
+    document.getElementById('importBtn').onclick = () => document.getElementById('importFile').click();
+    document.getElementById('importFile').addEventListener('change', (e)=>{
+      const f=e.target.files[0];
+      if(f) importJSON(f);
+      e.target.value='';
+    });
+    document.getElementById('resetColorsBtn').onclick = resetColors;
+
+    function firstInit(){
+      if(!data.notes || typeof data.notes !== 'object') data.notes={};
+      Object.keys(data.hari).forEach(d=>ensureNotes(d));
+      rebuildDays();
+    }
+
+    firstInit();
+    // Register Service Worker
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("service-worker.js")
         .then(() => console.log("Service Worker registered"))
