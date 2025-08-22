@@ -1,6 +1,6 @@
 {
   "name": "PWA Example",
-  "short_name": "PWA",
+  "short_name": "Jadwal",
   "start_url": "index.html",
   "display": "standalone",
   "background_color": "#ffffff",
