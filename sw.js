@@ -1,23 +1,33 @@
-const CACHE_NAME = "jadwal-cache-v1";
-const urlsToCache = [
+const CACHE_NAME = "pwa-cache-v1";
+const FILES_TO_CACHE = [
   "/",
   "/index.html",
-  "/manifest.webmanifest",
   "/offline.html",
+  "/manifest.webmanifest",
   "/icons/icon-192.png",
   "/icons/icon-512.png"
 ];
 
 self.addEventListener("install", (event) => {
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(FILES_TO_CACHE)));
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(urlsToCache))
+    caches.keys().then((keys) => Promise.all(keys.map((k) => k !== CACHE_NAME && caches.delete(k))))
   );
+  self.clients.claim();
 });
 
 self.addEventListener("fetch", (event) => {
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request).catch(() => caches.match("/offline.html"));
-    })
-  );
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match("/offline.html"))
+    );
+  } else {
+    event.respondWith(
+      caches.match(event.request).then((resp) => resp || fetch(event.request))
+    );
+  }
 });
