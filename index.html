@@ -334,14 +334,12 @@
     }
 
     firstInit();
-    <script>
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("sw.js")
-      .then(() => console.log("Service Worker registered"))
-      .catch(err => console.log("Service Worker failed:", err));
-  }
-</script>
-
+    // Register Service Worker
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw.js").then(() => {
+        console.log("Service Worker terdaftar");
+      });
+    }
   </script>
 </body>
 </html>
