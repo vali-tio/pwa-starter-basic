@@ -25,6 +25,39 @@
     tr.dragging { opacity: 0.5; }
   </style>
 </head>
+<footer id="donateFooter">
+  <span>Gratis untuk semua</span>
+  <a href="https://saweria.co/valitio" target="_blank" rel="noopener noreferrer">
+    💝 Dukung via Saweria
+  </a>
+</footer>
+
+<style>
+  #donateFooter {
+    position: fixed;
+    bottom: 0; left: 0;
+    width: 100%;
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    color: var(--text);
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 10px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    z-index: 999;
+  }
+  #donateFooter a {
+    color: #f97316;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  #donateFooter a:hover {
+    text-decoration: underline;
+  }
+</style>
+
 <body>
 <div class="container">
   <h2>Jadwal</h2>
